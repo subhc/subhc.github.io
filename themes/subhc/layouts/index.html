@@ -1,6 +1,20 @@
 {{ define "main" }}
-<article class="text-center text-gray-700">
-    <h1 class="font-serif font-extralight text-5xl text-gray-500">{{ .Title }}</h1>
-    {{ .Content }}
-</article>
+<div class="container w-5/6">
+<div class="">
+    <div class="max-w-md mx-auto bg-white overflow-hidden md:max-w-2xl">
+        <div class="md:flex">
+            <div class="md:flex-shrink-0">
+                <img class="h-32 object-cover w-32" src="/img/sc.jpg" alt="profile picture">
+            </div>
+
+            <div class="p-8">
+                <div class="tracking-wide  text-ridiculousblue font-baloo font-semibold">Subhabrata Choudhury</div>
+                <p class="mt-1 text-gray-500">PhD Candidate</p>
+                <p class="mt-1 text-gray-500">Visual Geometry Group</p>
+                <p class="mt-1 text-gray-500">University of Oxford, UK</p>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
 {{ end }}

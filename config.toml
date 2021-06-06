@@ -1,5 +1,26 @@
-baseURL = "http://example.org/"
+baseurl = "/"
 languageCode = "en-us"
-title = "My New Hugo Site"
-theme = "subhc" # your new theme name here
-
+title = "Subhabrata Choudhury"
+googleAnalytics = "G-QS51NR52XW"
+disqusShortname = "kanche"
+[permalinks]
+    posts = "/p/:year/:month/:title"
+[[menu.main]]
+    name = "HOME"
+    identifier = "HOME"
+    weight = 1
+    url = "/"
+[[menu.main]]
+    name = "POSTS"
+    identifier = "POSTS"
+    weight = 2
+    url = "/posts/"
+[markup]
+    [markup.goldmark]
+        [markup.goldmark.renderer]
+            unsafe = true
+    [markup.highlight]
+        lineNos = false
+        lineNumbersInTable = true
+        style = "github"
+        guessSyntax = true

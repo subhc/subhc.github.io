@@ -1,0 +1,31 @@
+{{ define "main" }}
+<div class="about container">
+    <div class="row">
+        <div class="">
+            <img src="/img/sc.jpg" class="img-responsive">
+        </div>
+        <div class="">
+            <p>{{ .Content }}</p>
+            <br />
+            <p>Feel free to use the contact form if you wish to reach me with any comments, suggestions, remarks on the content of this site or anything.</p>
+            <div class="row1">
+                <script type="text/javascript">
+                    var submitted = false;
+                </script>
+                <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;" onload="if(submitted){document.getElementById('submsg').style.display='block';document.getElementById('contactForm').reset();}"></iframe>
+                <form action="https://docs.google.com/forms/d/1qy35fynaa3MGJPjgIrr_AykZz2vmMqluQTMeFmI6pSU/formResponse" method="post" id="contactForm" target="hidden_iframe" onsubmit="submitted=true">
+                    <input type="text" name="entry.1635670964" value="" class="col-xs-12 ss-q-short nopadding" id="entry_1635670964" dir="auto" aria-label="Name  " aria-required="true" required="" title="" placeholder="Name">
+                    <input type="email" name="entry.1800841601" value="" class="col-xs-12 ss-q-short nopadding" id="entry_1800841601" dir="auto" aria-label="Contact  " aria-required="true" required="" title="" placeholder="Email ID">
+                    <div class="col-xs-12 ">
+                        <div class="abt-form row">
+                            <textarea name="entry.1864918951" rows="8" cols="0" class="ss-q-long col-xs-9 nopadding " id="entry_1864918951" dir="auto" aria-label="Message" placeholder="Your Message" onkeyup="textAreaAdjust(this)" style="overflow:hidden"></textarea>
+                            <input type="submit" name="submit" class="abt-submit btn btn-default button-sm " value="Send">
+                        </div>
+                    </div>
+                    <label id="submsg" style="color:#181; display: none; float:right;">Thanks, will get back to you soon!</label>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}

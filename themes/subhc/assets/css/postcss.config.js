@@ -17,10 +17,19 @@ module.exports = {
     plugins: [        
         require('postcss-import')({
             path: [themeDir]
-            }), 
+            }),
         require('tailwindcss')(themeDir + 'assets/css/tailwind.config.js'),
         require('autoprefixer')({
             path: [themeDir]
+        }),
+        require('postcss-font-magician')({
+            variants: {
+                'Baloo Da 2': {
+                    '400': [],
+                    '500': [],
+                    '700': []
+                }
+            }
         }),
         ...(process.env.HUGO_ENVIRONMENT === 'production' ? [purgecss] : [])
     ]

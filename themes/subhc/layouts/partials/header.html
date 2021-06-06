@@ -14,7 +14,7 @@
         }
     </style>
 
-    <nav class="flex w-5/6 content-end items-center justify-between flex-wrap mt-8">
+    <nav class="flex w-5/6 content-end items-center justify-between flex-wrap mt-6">
         <span class="flex"></span>
         <input id="nav-toggle" type=checkbox class="hidden">
         <label id="show-button" for="nav-toggle" class="flex items-center block sm:hidden text-ridiculousblue hover:text-ridiculousorange">
@@ -30,15 +30,16 @@
                          transform="rotate(45 10 10)" />
             </svg>
         </label>
-        <ul id="nav-menu" class="sm:flex text-sm w-full sm:w-auto hidden sm:block mt-2 sm:mt-0 sm:space-x-2">
+        <ul id="nav-menu" class="sm:flex w-full sm:w-auto hidden sm:block mt-2 sm:mt-0 sm:space-x-2 text-xxs
+                                 text-ridiculousblue hover:text-ridiculousorange font-baloo font-medium">
             {{ with .Site.GetPage "/" }}
-            <li><a href="{{ .Permalink }}" class="mr-4 text-ridiculousblue hover:text-ridiculousorange font-baloo font-medium">Home</a></li>
+            <li><a href="{{ .Permalink }}" class="mr-4">Home</a></li>
             {{ end }}
             {{ range .Site.Sections }}
-            <li><a href="{{ .Permalink }}" class="mr-4 text-ridiculousblue hover:text-ridiculousorange font-baloo font-medium">{{ .Title }}</a></li>
+            <li><a href="{{ .Permalink }}" class="mr-4">{{ .Title }}</a></li>
             {{ end }}
             {{ with .Site.GetPage "/about" }}
-            <li><a href="{{ .Permalink }}" class="text-ridiculousblue hover:text-ridiculousorange font-baloo font-medium">{{ .Title }}</a></li>
+            <li><a href="{{ .Permalink }}">{{ .Title }}</a></li>
             {{ end }}
         </ul>
     </nav>

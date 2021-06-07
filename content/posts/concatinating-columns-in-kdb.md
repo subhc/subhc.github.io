@@ -2,7 +2,7 @@
 date = "2016-05-14T10:58:42+05:30"
 title = "Concatenating kdb Columns"
 tags = ["kdb"]
-description = "First post of my blog!"
+description = "Concatenate columns in kdb kdb+"
 +++
 
 

@@ -1,6 +1,7 @@
 baseurl = "/"
 languageCode = "en-us"
 title = "Subhabrata Choudhury"
+author = "Subhabrata Choudhury"
 googleAnalytics = "G-QS51NR52XW"
 disqusShortname = "kanche"
 [permalinks]
@@ -24,3 +25,5 @@ disqusShortname = "kanche"
         lineNumbersInTable = true
         style = "github"
         guessSyntax = true
+[build]
+writeStats = true

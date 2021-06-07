@@ -15,22 +15,17 @@ const purgecss = require('@fullhuman/postcss-purgecss')({
 
 module.exports = {    
     plugins: [        
-        require('postcss-import')({
-            path: [themeDir]
-            }),
+        require('postcss-import')({ path: [themeDir] }),
         require('tailwindcss')(themeDir + 'assets/css/tailwind.config.js'),
-        require('autoprefixer')({
-            path: [themeDir]
-        }),
+        require('autoprefixer')({ path: [themeDir] }),
         require('postcss-font-magician')({
             variants: {
                 'Baloo Da 2': {
                     '400': [],
-                    '500': []
+                    '500': ['woff2', 'U+0020-007F']
                 },
                 'Neuton': {
-                    '600': [],
-                    '700': []
+                    '700': ['woff2', 'U+0020-007F']
                 },
                 'Montserrat': {
                     '300': [],

@@ -1,0 +1,648 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>kdb</title><meta name=copyright content="&copy; 2015 to present"><meta http-equiv=cleartype content="on"><meta name=generator content="Hugo 0.83.1"><link rel=stylesheet href=/css/styles.min.8436509b7571351b785a7ea3060e3c3da584a731acae7c0adf23fdb19f1361bb.css integrity=sha256-hDZQm3VxNRt4Wn6jBg48PaWEpzGsrnwK3yP9sZ8TYbs=><link rel=icon type=image/png href=/favicon.png></head><body class="flex flex-col min-h-screen"><header class="w-all px-4 pt-4"><style type=text/css>input#nav-toggle:checked~label#show-button{display:none}input#nav-toggle:checked~label#hide-button{display:flex}input#nav-toggle:checked~#nav-menu{display:block}</style><nav class="flex w-2/3 2xl:w-3/5 content-end items-center justify-between flex-wrap mt-6 mx-auto"><span class=flex></span><input id=nav-toggle type=checkbox class=hidden>
+<label id=show-button for=nav-toggle class="flex items-center block sm:hidden text-ridiculousblue hover:text-ridiculousorange"><svg class="fill-current h-4 w-4" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><title>Menu Open</title><path d="M0 3h20v2H0V3zm0 6h20v2H0V9zm0 6h20v2H0V0z"/></svg></label><label id=hide-button for=nav-toggle class="flex items-center hidden text-ridiculousblue hover:text-ridiculousorange"><svg class="fill-current h-4 w-4" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><title>Menu Close</title><polygon points="11 9 22 9 22 11 11 11 11 22 9 22 9 11 -2 11 -2 9 9 9 9 -2 11 -2" transform="rotate(45 10 10)"/></svg></label><ul id=nav-menu class="sm:flex w-full sm:w-auto hidden sm:block mt-2 sm:mt-0 sm:space-x-2 text-xxs
+2xl:text-xheader text-ridiculousblue font-baloo font-medium"><li><a href=/ class="mr-4 hover:text-ridiculousorange">Home</a></li><li><a href=/posts/ class="mr-4 hover:text-ridiculousorange">Posts</a></li><li><a href=/about/ class=hover:text-ridiculousorange>About</a></li></ul></nav></header><main class="flex-1 mx-4 md:mx-12 lg:mx-24"><article class="px-6 mx-auto mb-16 prose text-gray-700 justify-self-center sm:px-4 md:px-0 lg:prose-lg"><h1><a href=/p/2017/02/running-native-kdb-queries-in-spring-jdbc/>Running Native kdb Queries in Spring JDBC</a></h1><p>In my last post on <a href=/p/2016/03/interfacing-java-spring-with-kdb/>accessing a kdb+ server from spring</a>, we configured Spring to listen to a kdb+ gateway via jdbc. One drawback of using jdbc is queries will now have to be written as single-line sql strings to match the type of JdbcTemplate query arguments. This strips away some of the advantages <code>c.java</code> style querying has. In this post we&rsquo;ll go over a way to use the native kdb executor method in spring jdbc so that we can query <code>c.java</code> style and at the same time retain some of the advantages of jdbc, such as, simple connection configuration, effortless connection management etc.</p><p>Let&rsquo;s take an example. In a trading system, quotes data is periodically updated with new of snapshots received from exchanges. Let’s make a barebones kdb quote store server. We will define a simple bid-ask quote table and a <code>upd</code> function to insert list of records into it. The update time will also be recorded along with the new values.</p><p><code>/q/server.q</code>:<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">8
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>quote:flip `time`sym`bid`ask!()
+
+upd:{[arg]
+ t:arg[0];                   /saves the table name to t
+ x:arg[1];                   /saves the data received to x
+ z:(count x)#.z.T;           /creates a list with current time (time of receiving x)
+ t insert (enlist z),flip x; /insert time and data into t
+ }</code></pre></td></tr></table></div></div></p><h2 id=kdb-server>kdb Server</h2><p>First let’s start the server. The java client will connect to it over TCP port 7000.</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash>$ q server.q -p <span style=color:#099>7000</span>
+KDB+ 3.4 2016.12.08 Copyright <span style=color:#000;font-weight:700>(</span>C<span style=color:#000;font-weight:700>)</span> 1993-2016 Kx Systems
+m32/ 4<span style=color:#000;font-weight:700>()</span>core 8192MB subha tuchanka.local 192.168.0.104 NONEXPIRE
+
+q<span style=color:#000;font-weight:700>)</span></code></pre></td></tr></table></div></div><h2 id=poking-inside-the-jdbc-class>Poking inside the JDBC Class</h2><p>Within the code of <a href=https://a.kx.com/q/c/jdbc.java>jdbc.jar</a> you will find that the connection to kdb gateway is handled by the sub-class <code>co</code> and in that class there is pretty interesting method which is actually managing executing <code>JdbcTemplte</code>&rsquo;s query calls.</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">8
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#000;font-weight:700>public</span> Object <span style=color:#900;font-weight:700>ex</span><span style=color:#000;font-weight:700>(</span>String s<span style=color:#000;font-weight:700>,</span>Object<span style=color:#000;font-weight:700>[]</span>p<span style=color:#000;font-weight:700>)</span><span style=color:#000;font-weight:700>throws</span> SQLException<span style=color:#000;font-weight:700>{</span>
+    <span style=color:#000;font-weight:700>try</span> <span style=color:#000;font-weight:700>{</span>
+        <span style=color:#000;font-weight:700>return</span> 0<span style=color:#000;font-weight:700>&lt;</span>c<span style=color:#000;font-weight:700>.</span><span style=color:teal>n</span><span style=color:#000;font-weight:700>(</span>p<span style=color:#000;font-weight:700>)?</span>c<span style=color:#000;font-weight:700>.</span><span style=color:teal>k</span><span style=color:#000;font-weight:700>(</span>s<span style=color:#000;font-weight:700>,</span>p<span style=color:#000;font-weight:700>):</span>c<span style=color:#000;font-weight:700>.</span><span style=color:teal>k</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;.o.ex&#34;</span><span style=color:#000;font-weight:700>,</span>s<span style=color:#000;font-weight:700>.</span><span style=color:teal>toCharArray</span><span style=color:#000;font-weight:700>());</span>
+    <span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>catch</span><span style=color:#000;font-weight:700>(</span>Exception e<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+        q<span style=color:#000;font-weight:700>(</span>e<span style=color:#000;font-weight:700>);</span>
+        <span style=color:#000;font-weight:700>return</span> <span style=color:#000;font-weight:700>null</span><span style=color:#000;font-weight:700>;</span>
+    <span style=color:#000;font-weight:700>}</span>
+<span style=color:#000;font-weight:700>}</span></code></pre></td></tr></table></div></div><p>So, If <code>h</code> is a handle of a kdb gateway <code>ex(String arg0,Object[] arg1)</code> is essentially equivalent to running the following kdb command:</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q) h &#34;{value of arg0} {value of arg1}&#34;</code></pre></td></tr></table></div></div><p>To run a kdb function using <code>ex</code> you need to pass the function&rsquo;s name to <code>arg0</code>, and all the required arguments for that function as a list to <code>arg1</code>. For example, arguments for <code>ex</code> to run the q expression <code>count (`SYM;99.0;101.0)</code> is:</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#998;font-style:italic>// conn is the connection object
+</span><span style=color:#998;font-style:italic></span>Long ret <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>(</span>Long<span style=color:#000;font-weight:700>)</span> conn<span style=color:#000;font-weight:700>.</span><span style=color:teal>ex</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;count&#34;</span><span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>new</span> Object<span style=color:#000;font-weight:700>[]{</span><span style=color:#d14>&#34;SYM&#34;</span><span style=color:#000;font-weight:700>,</span><span style=color:#000;font-weight:700>new</span> Double<span style=color:#000;font-weight:700>(</span>99<span style=color:#000;font-weight:700>),</span><span style=color:#000;font-weight:700>new</span> Double<span style=color:#000;font-weight:700>(</span>101<span style=color:#000;font-weight:700>)});</span> 
+System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>print</span><span style=color:#000;font-weight:700>(</span>ret<span style=color:#000;font-weight:700>);</span></code></pre></td></tr></table></div></div><h2 id=extracting-the-underlying-co-object-from-jdbctemplate>Extracting the underlying <code>co</code> object from jdbcTemplate</h2><p><code>JdbcTemplate</code> uses <code>org.apache.tomcat.jdbc.pool.PooledConnection</code> to manage connections. So we need to get a connection from the pool and then extract the <code>co</code> connection object within. Be careful to use try-with-resources with the pooled connection, because then at the end of the statement the underlying kdb connection will be returned to the pool and it will be reused in the next loops.</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java>Connection c <span style=color:#000;font-weight:700>=</span> jdbcTemplate<span style=color:#000;font-weight:700>.</span><span style=color:teal>getDataSource</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getConnection</span><span style=color:#000;font-weight:700>()</span>
+co conn <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>(</span>co<span style=color:#000;font-weight:700>)</span> c<span style=color:#000;font-weight:700>.</span><span style=color:teal>getMetaData</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getConnection</span><span style=color:#000;font-weight:700>();</span></code></pre></td></tr></table></div></div><p>I am using the <a href=https://a.kx.com/q/c/>jdbc.jar</a> from kx site, in which, for some reason, the <code>jdbc</code> class resides in a default package. That means we cannot import <code>jdbc</code> with an import statement. We&rsquo;ll have to use reflection to get a handle to the <code>ex</code> method and invoke that. The class <code>co</code> is inside <code>jdbc</code> class, so the fully qualified name for it would be <code>jdbc$co</code>.</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java>Method executeQuery <span style=color:#000;font-weight:700>=</span> Class<span style=color:#000;font-weight:700>.</span><span style=color:teal>forName</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;jdbc$co&#34;</span><span style=color:#000;font-weight:700>).</span><span style=color:teal>getMethod</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;ex&#34;</span><span style=color:#000;font-weight:700>,</span> String<span style=color:#000;font-weight:700>.</span><span style=color:teal>class</span><span style=color:#000;font-weight:700>,</span> Object<span style=color:#000;font-weight:700>[].</span><span style=color:teal>class</span><span style=color:#000;font-weight:700>);</span>
+Connection c <span style=color:#000;font-weight:700>=</span> jdbcTemplate<span style=color:#000;font-weight:700>.</span><span style=color:teal>getDataSource</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getConnection</span><span style=color:#000;font-weight:700>()</span>
+Object conn <span style=color:#000;font-weight:700>=</span> c<span style=color:#000;font-weight:700>.</span><span style=color:teal>getMetaData</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getConnection</span><span style=color:#000;font-weight:700>();</span>
+executeQuery<span style=color:#000;font-weight:700>.</span><span style=color:teal>invoke</span><span style=color:#000;font-weight:700>(</span>conn<span style=color:#000;font-weight:700>,</span> arg0<span style=color:#000;font-weight:700>,</span> arg1<span style=color:#000;font-weight:700>);</span> </code></pre></td></tr></table></div></div><h2 id=spring-java-clent>Spring Java Clent</h2><p>Maven configurations are same as the previous post. In <code>application.properties</code> we need to add tomcat datapool specific configurations.</p><p><code>/src/main/resources/application.properties</code>:<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">9
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java>spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>url</span><span style=color:#000;font-weight:700>=</span>jdbc<span style=color:#000;font-weight:700>:</span>q<span style=color:#000;font-weight:700>:</span>localhost<span style=color:#000;font-weight:700>:</span>7000
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>driverClassName</span><span style=color:#000;font-weight:700>=</span>jdbc
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>initSql</span><span style=color:#000;font-weight:700>=</span>q<span style=color:#000;font-weight:700>)</span>1
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>validationQuery</span><span style=color:#000;font-weight:700>=</span>q<span style=color:#000;font-weight:700>)</span>1
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>testOnBorrow</span><span style=color:#000;font-weight:700>=</span><span style=color:#000;font-weight:700>true</span>
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>testOnConnect</span><span style=color:#000;font-weight:700>=</span><span style=color:#000;font-weight:700>true</span>
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>testOnIdle</span><span style=color:#000;font-weight:700>=</span><span style=color:#000;font-weight:700>true</span>
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>validationInterval</span> <span style=color:#000;font-weight:700>=</span> 30000
+spring<span style=color:#000;font-weight:700>.</span><span style=color:teal>datasource</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>tomcat</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>maxIdle</span><span style=color:#000;font-weight:700>=</span>10</code></pre></td></tr></table></div></div></p><p>We&rsquo;ll make an CLI application by implementing <code>CommandLineRunner</code> interface.</p><p>We are going to connect to the gateway and use the <code>upd</code> function defined in <code>server.q</code> to insert records into quote. For this example, I&rsquo;ll create dummy datafeed using a list of price and stocks (example below) and randomizing it a bit to create bid/ask columns.</p><p><code>stocks.list</code>:<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java>GOOG<span style=color:#000;font-weight:700>=</span>808<span style=color:#000;font-weight:700>.</span><span style=color:teal>38</span>
+GOOGL<span style=color:#000;font-weight:700>=</span>829<span style=color:#000;font-weight:700>.</span><span style=color:teal>88</span>
+AAPL<span style=color:#000;font-weight:700>=</span>132<span style=color:#000;font-weight:700>.</span><span style=color:teal>04</span>
+FB<span style=color:#000;font-weight:700>=</span>134<span style=color:#000;font-weight:700>.</span><span style=color:teal>2</span>
+MSFT<span style=color:#000;font-weight:700>=</span>63<span style=color:#000;font-weight:700>.</span><span style=color:teal>34</span></code></pre></td></tr></table></div></div></p><p>Here is the complete code incorporating all the things we have discussed:
+<code>src/main/java/hello/Application.java</code>:<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">66
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">67
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">68
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">69
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">70
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">71
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">72
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">73
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">74
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">75
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">76
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">77
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">78
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">79
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">80
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">81
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#000;font-weight:700>package</span> <span style=color:#555>hello</span><span style=color:#000;font-weight:700>;</span>
+
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.beans.factory.annotation.Autowired</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.boot.CommandLineRunner</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.boot.SpringApplication</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.boot.autoconfigure.SpringBootApplication</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.core.io.ClassPathResource</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.jdbc.core.JdbcTemplate</span><span style=color:#000;font-weight:700>;</span>
+
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.io.FileInputStream</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.io.IOException</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.lang.reflect.InvocationTargetException</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.lang.reflect.Method</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.sql.Connection</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.sql.SQLException</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.util.*</span><span style=color:#000;font-weight:700>;</span>
+
+<span style=color:#3c5d5d;font-weight:700>@SpringBootApplication</span>
+<span style=color:#000;font-weight:700>public</span> <span style=color:#000;font-weight:700>class</span> <span style=color:#458;font-weight:700>Application</span> <span style=color:#000;font-weight:700>implements</span> CommandLineRunner <span style=color:#000;font-weight:700>{</span>
+
+    <span style=color:#3c5d5d;font-weight:700>@Autowired</span>
+    JdbcTemplate jdbcTemplate<span style=color:#000;font-weight:700>;</span>
+
+    <span style=color:#000;font-weight:700>private</span> Map<span style=color:#000;font-weight:700>&lt;</span>String<span style=color:#000;font-weight:700>,</span> Double<span style=color:#000;font-weight:700>&gt;</span> stocksList<span style=color:#000;font-weight:700>;</span>
+    <span style=color:#000;font-weight:700>private</span> Method executeQuery<span style=color:#000;font-weight:700>;</span>
+
+    <span style=color:#000;font-weight:700>public</span> <span style=color:#000;font-weight:700>static</span> <span style=color:#458;font-weight:700>void</span> <span style=color:#900;font-weight:700>main</span><span style=color:#000;font-weight:700>(</span>String args<span style=color:#000;font-weight:700>[])</span> <span style=color:#000;font-weight:700>{</span>
+        SpringApplication<span style=color:#000;font-weight:700>.</span><span style=color:teal>run</span><span style=color:#000;font-weight:700>(</span>Application<span style=color:#000;font-weight:700>.</span><span style=color:teal>class</span><span style=color:#000;font-weight:700>,</span> args<span style=color:#000;font-weight:700>);</span>
+    <span style=color:#000;font-weight:700>}</span>
+
+
+
+    <span style=color:#3c5d5d;font-weight:700>@Override</span>
+    <span style=color:#000;font-weight:700>public</span> <span style=color:#458;font-weight:700>void</span> <span style=color:#900;font-weight:700>run</span><span style=color:#000;font-weight:700>(</span>String<span style=color:#000;font-weight:700>...</span> strings<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+
+        stocksList <span style=color:#000;font-weight:700>=</span> getStockList<span style=color:#000;font-weight:700>();</span>
+
+        <span style=color:#000;font-weight:700>try</span> <span style=color:#000;font-weight:700>{</span>
+            executeQuery <span style=color:#000;font-weight:700>=</span> Class<span style=color:#000;font-weight:700>.</span><span style=color:teal>forName</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;jdbc$co&#34;</span><span style=color:#000;font-weight:700>).</span><span style=color:teal>getMethod</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;ex&#34;</span><span style=color:#000;font-weight:700>,</span> String<span style=color:#000;font-weight:700>.</span><span style=color:teal>class</span><span style=color:#000;font-weight:700>,</span> Object<span style=color:#000;font-weight:700>[].</span><span style=color:teal>class</span><span style=color:#000;font-weight:700>);</span>
+        <span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>catch</span> <span style=color:#000;font-weight:700>(</span>NoSuchMethodException <span style=color:#000;font-weight:700>|</span> ClassNotFoundException e<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+            System<span style=color:#000;font-weight:700>.</span><span style=color:teal>err</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>println</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;kdb+ JDBC driver has not loaded properly&#34;</span><span style=color:#000;font-weight:700>);</span>
+            e<span style=color:#000;font-weight:700>.</span><span style=color:teal>printStackTrace</span><span style=color:#000;font-weight:700>();</span>
+            System<span style=color:#000;font-weight:700>.</span><span style=color:teal>exit</span><span style=color:#000;font-weight:700>(</span>1<span style=color:#000;font-weight:700>);</span>
+        <span style=color:#000;font-weight:700>}</span>
+
+        <span style=color:#000;font-weight:700>while</span><span style=color:#000;font-weight:700>(</span><span style=color:#000;font-weight:700>true</span><span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+
+
+            <span style=color:#000;font-weight:700>try</span><span style=color:#000;font-weight:700>(</span>Connection c <span style=color:#000;font-weight:700>=</span> jdbcTemplate<span style=color:#000;font-weight:700>.</span><span style=color:teal>getDataSource</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getConnection</span><span style=color:#000;font-weight:700>()){</span>
+                executeQuery<span style=color:#000;font-weight:700>.</span><span style=color:teal>invoke</span><span style=color:#000;font-weight:700>(</span>c<span style=color:#000;font-weight:700>.</span><span style=color:teal>getMetaData</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getConnection</span><span style=color:#000;font-weight:700>(),</span> <span style=color:#d14>&#34;upd&#34;</span><span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>new</span> Object<span style=color:#000;font-weight:700>[]{</span><span style=color:#d14>&#34;quote&#34;</span><span style=color:#000;font-weight:700>,</span> getDummyData<span style=color:#000;font-weight:700>()});</span>
+                Thread<span style=color:#000;font-weight:700>.</span><span style=color:teal>sleep</span><span style=color:#000;font-weight:700>(</span>1000<span style=color:#000;font-weight:700>);</span>
+
+            <span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>catch</span> <span style=color:#000;font-weight:700>(</span>  IllegalAccessException <span style=color:#000;font-weight:700>|</span> InvocationTargetException <span style=color:#000;font-weight:700>|</span> InterruptedException <span style=color:#000;font-weight:700>|</span> SQLException e<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+                e<span style=color:#000;font-weight:700>.</span><span style=color:teal>printStackTrace</span><span style=color:#000;font-weight:700>();</span>
+            <span style=color:#000;font-weight:700>}</span>
+        <span style=color:#000;font-weight:700>}</span>
+
+    <span style=color:#000;font-weight:700>}</span>
+
+    <span style=color:#000;font-weight:700>private</span> Object<span style=color:#000;font-weight:700>[]</span> <span style=color:#900;font-weight:700>getDummyData</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>{</span>
+        List<span style=color:#000;font-weight:700>&lt;</span>Object<span style=color:#000;font-weight:700>[]&gt;</span> l <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> ArrayList<span style=color:#000;font-weight:700>&lt;&gt;();</span>
+        stocksList<span style=color:#000;font-weight:700>.</span><span style=color:teal>forEach</span><span style=color:#000;font-weight:700>((</span>k<span style=color:#000;font-weight:700>,</span>v<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>-&gt;</span> l<span style=color:#000;font-weight:700>.</span><span style=color:teal>add</span><span style=color:#000;font-weight:700>(</span><span style=color:#000;font-weight:700>new</span> Object<span style=color:#000;font-weight:700>[]{</span>k<span style=color:#000;font-weight:700>,</span> v<span style=color:#000;font-weight:700>-</span>2<span style=color:#000;font-weight:700>*</span>Math<span style=color:#000;font-weight:700>.</span><span style=color:teal>round</span><span style=color:#000;font-weight:700>(</span>100<span style=color:#000;font-weight:700>*</span>Math<span style=color:#000;font-weight:700>.</span><span style=color:teal>random</span><span style=color:#000;font-weight:700>())/</span>100<span style=color:#000;font-weight:700>.</span><span style=color:teal>0</span><span style=color:#000;font-weight:700>,</span> v<span style=color:#000;font-weight:700>+</span>2<span style=color:#000;font-weight:700>*</span>Math<span style=color:#000;font-weight:700>.</span><span style=color:teal>round</span><span style=color:#000;font-weight:700>(</span>100<span style=color:#000;font-weight:700>*</span>Math<span style=color:#000;font-weight:700>.</span><span style=color:teal>random</span><span style=color:#000;font-weight:700>())/</span>100<span style=color:#000;font-weight:700>.</span><span style=color:teal>0</span><span style=color:#000;font-weight:700>}));</span>
+        <span style=color:#000;font-weight:700>return</span> l<span style=color:#000;font-weight:700>.</span><span style=color:teal>toArray</span><span style=color:#000;font-weight:700>();</span>
+    <span style=color:#000;font-weight:700>}</span>
+
+    <span style=color:#000;font-weight:700>private</span> Map<span style=color:#000;font-weight:700>&lt;</span>String<span style=color:#000;font-weight:700>,</span> Double<span style=color:#000;font-weight:700>&gt;</span> <span style=color:#900;font-weight:700>getStockList</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>{</span>
+        Map<span style=color:#000;font-weight:700>&lt;</span>String<span style=color:#000;font-weight:700>,</span> Double<span style=color:#000;font-weight:700>&gt;</span> ret <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> HashMap<span style=color:#000;font-weight:700>&lt;&gt;();</span>
+        <span style=color:#000;font-weight:700>try</span> <span style=color:#000;font-weight:700>{</span>
+            Properties props <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> Properties<span style=color:#000;font-weight:700>();</span>
+            FileInputStream in <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> FileInputStream<span style=color:#000;font-weight:700>(</span><span style=color:#000;font-weight:700>new</span> ClassPathResource<span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;stocks.list&#34;</span><span style=color:#000;font-weight:700>).</span><span style=color:teal>getFile</span><span style=color:#000;font-weight:700>());</span>
+            props<span style=color:#000;font-weight:700>.</span><span style=color:teal>load</span><span style=color:#000;font-weight:700>(</span>in<span style=color:#000;font-weight:700>);</span>
+            props<span style=color:#000;font-weight:700>.</span><span style=color:teal>forEach</span><span style=color:#000;font-weight:700>((</span>k<span style=color:#000;font-weight:700>,</span>v<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>-&gt;</span> ret<span style=color:#000;font-weight:700>.</span><span style=color:teal>put</span><span style=color:#000;font-weight:700>((</span>String<span style=color:#000;font-weight:700>)</span>k<span style=color:#000;font-weight:700>,</span> Double<span style=color:#000;font-weight:700>.</span><span style=color:teal>parseDouble</span><span style=color:#000;font-weight:700>((</span>String<span style=color:#000;font-weight:700>)</span>v<span style=color:#000;font-weight:700>)));</span>
+            in<span style=color:#000;font-weight:700>.</span><span style=color:teal>close</span><span style=color:#000;font-weight:700>();</span>
+
+        <span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>catch</span> <span style=color:#000;font-weight:700>(</span>IOException e<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+            e<span style=color:#000;font-weight:700>.</span><span style=color:teal>printStackTrace</span><span style=color:#000;font-weight:700>();</span>
+        <span style=color:#000;font-weight:700>}</span>
+
+        <span style=color:#000;font-weight:700>return</span> ret<span style=color:#000;font-weight:700>;</span>
+    <span style=color:#000;font-weight:700>}</span>
+<span style=color:#000;font-weight:700>}</span></code></pre></td></tr></table></div></div></p><h2 id=run-instructions>Run Instructions</h2><p>Open the project in IntelliJ IDEA/Eclipse. Add <a href=http://kx.com/q/c/jdbc.jar>this jar</a> to your build path and run the client.</p><p>Now if you query quote you should see new data coming in every second</p><div class=highlight><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>  ~/Workspace/sping-kdb-native/q $ rlwrap q server.q -p 7000
+  KDB+ 3.4 2016.12.08 Copyright (C) 1993-2016 Kx Systems
+  m32/ 4()core 8192MB subha tuchanka.local 192.168.0.101 NONEXPIRE
+      
+  q)quote
+  time         sym   bid    ask
+  --------------------------------
+  20:19:51.463 CERN  52.93  53.93
+  20:19:51.463 VMW   87.76  90.76
+  20:19:51.463 GOOGL 829.88 829.88
+  20:19:51.463 AAPL  132.04 132.04
+  20:19:51.463 YHOO  44.07  45.07
+  20:19:51.463 ADI   77.48  78.48
+  20:19:51.463 BIDU  181.5  181.5
+  20:19:51.463 INFO  38.71  40.71
+  20:19:51.463 ITW   127.12 128.12
+  20:19:51.463 ADP   95.58  96.58
+  20:19:51.463 STM   13.94  14.94
+  20:19:51.463 CHKP  99.56  100.56
+  20:19:51.463 PNR   57.96  58.96
+  20:19:51.463 STX   44.8   46.8
+  20:19:51.463 WDC   76.08  78.08
+  20:19:51.463 XLNX  58.23  59.23
+  20:19:51.463 AMD   13.56  14.56
+  20:19:51.463 CTSH  56.45  57.45
+  20:19:51.463 DVMT  64.84  65.84
+  20:19:51.463 INFY  13.11  15.11
+  ..
+  q)count quote
+  192225
+  q)
+  </code></pre></div><p>You can find the complete project <a href=https://github.com/subhc/blogcodes/tree/master/spring-kdb-native>here</a>.</p></article><article class="px-6 mx-auto mb-16 prose text-gray-700 justify-self-center sm:px-4 md:px-0 lg:prose-lg"><h1><a href=/p/2016/05/concatenating-kdb-columns/>Concatenating kdb Columns</a></h1><p>Suppose in a query you need to concatenate two kdb columns into one; for example, to join date and time into one field - kdb has nifty features to do it easily.</p><ol><li><p>You can join(<code>,</code>) two or more column into one using <code>'</code>(each-both). The columns do not need to be of the same type. The type of the returned column is list.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)tab:([]firstname:`John`Jia`Jai`Jac;lastname:`James`Jain`Jadeja`Jones;age:1+4?30)
+q)tab
+firstname lastname age
+----------------------
+John      James    19
+Jia       Jain     24
+Jai       Jadeja   25
+Jac       Jones    19
+q)
+q)select name:(firstname,&#39;lastname) from tab
+name
+----------
+John James
+Jia  Jain
+Jai  Jadeja
+Jac  Jones</code></pre></td></tr></table></div></div></p></li><li><p>A mixed list is formed if the columns are of different type. If you cast the columns to string before each-both join, a concatenated string is formed. You can also insert a character using <code>,'</code>.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select col:((string firstname),&#39;(string lastname),&#39;&#34;/&#34;,&#39;(string age)) from tab
+col
+--------------
+&#34;JohnJames/19&#34;
+&#34;JiaJain/24&#34;
+&#34;JaiJadeja/25&#34;
+&#34;JacJones/19&#34;</code></pre></td></tr></table></div></div></p></li><li><p>If you need multi character delimiters, use <code>sv</code>. A nice advantage of this method is you don&rsquo;t have to individually convert each column to string.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select col:({&#34;--&#34; sv x} each string (firstname,&#39;lastname,&#39;age)) from tab
+col
+-----------------
+&#34;John--James--19&#34;
+&#34;Jia--Jain--24&#34;
+&#34;Jai--Jadeja--25&#34;
+&#34;Jac--Jones--19&#34;</code></pre></td></tr></table></div></div></p></li><li><p>To add a string as prefix and postfix to a column, you can use <code>/:</code>(each right) and <code>\:</code>(each left) respectively.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select (&#34;Dear &#34;,/:(string firstname)) from tab
+firstname
+-----------
+&#34;Dear John&#34;
+&#34;Dear Jia&#34;
+&#34;Dear Jai&#34;
+&#34;Dear Jac&#34;
+q)select ((string age),\:&#34; years&#34;) from tab
+x
+----------
+&#34;19 years&#34;
+&#34;24 years&#34;
+&#34;25 years&#34;
+&#34;19 years&#34;
+q)select col:((string firstname),&#39;(string lastname),&#39;&#34;/Age&#34;,/:(string age)) from tab
+col
+--------------
+&#34;JohnJames/Age19&#34;
+&#34;JiaJain/Age24&#34;
+&#34;JaiJadeja/Age25&#34;
+&#34;JacJones/Age19&#34;</code></pre></td></tr></table></div></div></p></li><li><p>Lets conclude by creating a JavaScript style array by joining all three columns.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select (&#34;[&#39;&#34;,/:(({&#34;&#39;,&#39;&#34; sv x} each string (firstname,&#39;lastname,&#39;age)),\:&#34;&#39;]&#34;)) from tab
+x
+-----------------------
+&#34;[&#39;John&#39;,&#39;James&#39;,&#39;19&#39;]&#34;
+&#34;[&#39;Jia&#39;,&#39;Jain&#39;,&#39;24&#39;]&#34;
+&#34;[&#39;Jai&#39;,&#39;Jadeja&#39;,&#39;25&#39;]&#34;
+&#34;[&#39;Jac&#39;,&#39;Jones&#39;,&#39;19&#39;]&#34;</code></pre></td></tr></table></div></div></p></li></ol></article><article class="px-6 mx-auto mb-16 prose text-gray-700 justify-self-center sm:px-4 md:px-0 lg:prose-lg"><h1><a href=/p/2016/03/interfacing-java-spring-with-kdb/>Interfacing Java Spring with kdb</a></h1><p>The classic way to access a kdb server from java is via the <a href=https://github.com/KxSystems/javakdb/blob/master/src/kx/c.java>c class</a>. The jdbc implementation makes it easy to interface with a kdb database providing higher level methods to establish a database connection, parse the returned object. One drawback is that it does not support retrieving result that is not a table. Let&rsquo;s go over a short guide on how to use jdbc to connect to kdb.</p><h2 id=kdb-server>kdb Server</h2><p>First let’s start a kdb process to which the java client will connect over TCP port 7000. You can choose any port you like.</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash>$ ./q
+KDB+ 3.3 2016.03.14 Copyright <span style=color:#000;font-weight:700>(</span>C<span style=color:#000;font-weight:700>)</span> 1993-2016 Kx Systems
+m32/ 4<span style=color:#000;font-weight:700>()</span>core 8192MB subha tuchanka.local 192.168.0.101 NONEXPIRE
+
+q<span style=color:#000;font-weight:700>)</span><span style=color:#d14>\p</span> <span style=color:#099>7000</span>
+q<span style=color:#000;font-weight:700>)</span></code></pre></td></tr></table></div></div><h2 id=spring-java-clent>Spring Java Clent</h2><h3 id=maven-configuration>Maven Configuration</h3><p>We are going to use Spring Boot with jdbc starter. Spring boot further simplifies the code by configuring Spring automatically wherever possible. <code>spring-boot-starter-jdbc</code> provides support for jdbc.</p><p><code>pom.xml</code>:</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-xml data-lang=xml><span style=color:#999;font-weight:700;font-style:italic>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34;?&gt;</span>
+<span style=color:navy>&lt;project</span> <span style=color:teal>xmlns=</span><span style=color:#d14>&#34;http://maven.apache.org/POM/4.0.0&#34;</span>
+    <span style=color:teal>xmlns:xsi=</span><span style=color:#d14>&#34;http://www.w3.org/2001/XMLSchema-instance&#34;</span>
+    <span style=color:teal>xsi:schemaLocation=</span><span style=color:#d14>&#34;http://maven.apache.org/POM/4.0.0
+</span><span style=color:#d14>                        http://maven.apache.org/xsd/maven-4.0.0.xsd&#34;</span><span style=color:navy>&gt;</span>
+    <span style=color:navy>&lt;modelVersion&gt;</span>4.0.0<span style=color:navy>&lt;/modelVersion&gt;</span>
+
+    <span style=color:navy>&lt;groupId&gt;</span>com.example<span style=color:navy>&lt;/groupId&gt;</span>
+    <span style=color:navy>&lt;artifactId&gt;</span>spring-kdb<span style=color:navy>&lt;/artifactId&gt;</span>
+    <span style=color:navy>&lt;version&gt;</span>0.0.1-SNAPSHOT<span style=color:navy>&lt;/version&gt;</span>
+    <span style=color:navy>&lt;packaging&gt;</span>jar<span style=color:navy>&lt;/packaging&gt;</span>
+
+    <span style=color:navy>&lt;name&gt;</span>spring-kdb<span style=color:navy>&lt;/name&gt;</span>
+    <span style=color:navy>&lt;description&gt;</span>Demo project for Spring kdb Integration<span style=color:navy>&lt;/description&gt;</span>
+
+    <span style=color:navy>&lt;parent&gt;</span>
+        <span style=color:navy>&lt;groupId&gt;</span>org.springframework.boot<span style=color:navy>&lt;/groupId&gt;</span>
+        <span style=color:navy>&lt;artifactId&gt;</span>spring-boot-starter-parent<span style=color:navy>&lt;/artifactId&gt;</span>
+        <span style=color:navy>&lt;version&gt;</span>1.3.3.RELEASE<span style=color:navy>&lt;/version&gt;</span>
+        <span style=color:navy>&lt;relativePath/&gt;</span> <span style=color:#998;font-style:italic>&lt;!-- lookup parent from repository --&gt;</span>
+    <span style=color:navy>&lt;/parent&gt;</span>
+
+    <span style=color:navy>&lt;properties&gt;</span>
+        <span style=color:navy>&lt;project.build.sourceEncoding&gt;</span>UTF-8<span style=color:navy>&lt;/project.build.sourceEncoding&gt;</span>
+        <span style=color:navy>&lt;java.version&gt;</span>1.8<span style=color:navy>&lt;/java.version&gt;</span>
+    <span style=color:navy>&lt;/properties&gt;</span>
+
+    <span style=color:navy>&lt;dependencies&gt;</span>
+        <span style=color:navy>&lt;dependency&gt;</span>
+            <span style=color:navy>&lt;groupId&gt;</span>org.springframework.boot<span style=color:navy>&lt;/groupId&gt;</span>
+            <span style=color:navy>&lt;artifactId&gt;</span>spring-boot-starter-jdbc<span style=color:navy>&lt;/artifactId&gt;</span>
+        <span style=color:navy>&lt;/dependency&gt;</span>
+
+        <span style=color:navy>&lt;dependency&gt;</span>
+            <span style=color:navy>&lt;groupId&gt;</span>org.springframework.boot<span style=color:navy>&lt;/groupId&gt;</span>
+            <span style=color:navy>&lt;artifactId&gt;</span>spring-boot-starter-test<span style=color:navy>&lt;/artifactId&gt;</span>
+            <span style=color:navy>&lt;scope&gt;</span>test<span style=color:navy>&lt;/scope&gt;</span>
+        <span style=color:navy>&lt;/dependency&gt;</span>
+    <span style=color:navy>&lt;/dependencies&gt;</span>
+
+    <span style=color:navy>&lt;build&gt;</span>
+        <span style=color:navy>&lt;plugins&gt;</span>
+            <span style=color:navy>&lt;plugin&gt;</span>
+                <span style=color:navy>&lt;groupId&gt;</span>org.springframework.boot<span style=color:navy>&lt;/groupId&gt;</span>
+                <span style=color:navy>&lt;artifactId&gt;</span>spring-boot-maven-plugin<span style=color:navy>&lt;/artifactId&gt;</span>
+            <span style=color:navy>&lt;/plugin&gt;</span>
+        <span style=color:navy>&lt;/plugins&gt;</span>
+    <span style=color:navy>&lt;/build&gt;</span>
+<span style=color:navy>&lt;/project&gt;</span></code></pre></td></tr></table></div></div><h3 id=configuring-datasource>Configuring Datasource</h3><p>The jdbc driver for kdb not available in maven. It can be downloaded from <a href=http://kx.com/q/c/jdbc.jar>kx repository</a>. You can add it as a <a href=http://stackoverflow.com/questions/3280353/how-to-import-a-jar-in-eclipse>build dependency</a> or <a href=http://www.mkyong.com/maven/how-to-include-library-manully-into-maven-local-repository/>add to your local maven repo</a> and use it as a maven dependency. I am going to use the first approach.</p><p>Configure the driver class name and server URL in the <code>application.properties</code> file.</p><p><code>/src/main/resources/application.properties</code>:</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-text data-lang=text>spring.datasource.driverClassName=jdbc
+spring.datasource.url=jdbc:q:localhost:7000</code></pre></td></tr></table></div></div><h3 id=connecting-to-kdb>Connecting to kdb</h3><p>Spring boot will automatically configure the datasource class from the <code>application.properties</code> and you can use <code>@Autowired</code> annotation to pass it to a <code>jdbcTemplate</code>.</p><p>Let&rsquo;s make a kdb terminal in Java.</p><p><code>src/main/java/hello/Application.java</code>:</p><div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">66
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">67
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">68
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">69
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">70
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">71
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">72
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">73
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">74
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">75
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#000;font-weight:700>package</span> <span style=color:#555>hello</span><span style=color:#000;font-weight:700>;</span>
+
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.beans.factory.annotation.Autowired</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.boot.CommandLineRunner</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.boot.SpringApplication</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.boot.autoconfigure.SpringBootApplication</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>org.springframework.jdbc.core.JdbcTemplate</span><span style=color:#000;font-weight:700>;</span>
+
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.io.BufferedReader</span><span style=color:#000;font-weight:700>;</span>
+
+
+
+
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.io.IOException</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.io.InputStreamReader</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.sql.ResultSet</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.sql.ResultSetMetaData</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#000;font-weight:700>import</span> <span style=color:#555>java.sql.SQLException</span><span style=color:#000;font-weight:700>;</span>
+<span style=color:#998;font-style:italic>//tab:flip `items`sales`prices!(`nut`bolt`cam`cog;6 8 0 3;10 20 15 20)
+</span><span style=color:#998;font-style:italic></span><span style=color:#3c5d5d;font-weight:700>@SpringBootApplication</span>
+<span style=color:#000;font-weight:700>public</span> <span style=color:#000;font-weight:700>class</span> <span style=color:#458;font-weight:700>Application</span> <span style=color:#000;font-weight:700>implements</span> CommandLineRunner <span style=color:#000;font-weight:700>{</span>
+
+    <span style=color:#3c5d5d;font-weight:700>@Autowired</span>
+    JdbcTemplate jdbcTemplate<span style=color:#000;font-weight:700>;</span>
+
+    <span style=color:#000;font-weight:700>public</span> <span style=color:#000;font-weight:700>static</span> <span style=color:#458;font-weight:700>void</span> <span style=color:#900;font-weight:700>main</span><span style=color:#000;font-weight:700>(</span>String args<span style=color:#000;font-weight:700>[])</span> <span style=color:#000;font-weight:700>{</span>
+        SpringApplication<span style=color:#000;font-weight:700>.</span><span style=color:teal>run</span><span style=color:#000;font-weight:700>(</span>Application<span style=color:#000;font-weight:700>.</span><span style=color:teal>class</span><span style=color:#000;font-weight:700>,</span> args<span style=color:#000;font-weight:700>);</span>
+    <span style=color:#000;font-weight:700>}</span>
+
+    <span style=color:#3c5d5d;font-weight:700>@Override</span>
+    <span style=color:#000;font-weight:700>public</span> <span style=color:#458;font-weight:700>void</span> <span style=color:#900;font-weight:700>run</span><span style=color:#000;font-weight:700>(</span>String<span style=color:#000;font-weight:700>...</span> strings<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>throws</span> IOException <span style=color:#000;font-weight:700>{</span>
+        InputStreamReader isr <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> InputStreamReader<span style=color:#000;font-weight:700>(</span>System<span style=color:#000;font-weight:700>.</span><span style=color:teal>in</span><span style=color:#000;font-weight:700>);</span>
+        BufferedReader br <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> BufferedReader<span style=color:#000;font-weight:700>(</span>isr<span style=color:#000;font-weight:700>);</span>
+        <span style=color:#000;font-weight:700>while</span> <span style=color:#000;font-weight:700>(</span><span style=color:#000;font-weight:700>true</span><span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+            System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>print</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;q) &#34;</span><span style=color:#000;font-weight:700>);</span>
+            String sql <span style=color:#000;font-weight:700>=</span> <span style=color:#d14>&#34;q)&#34;</span> <span style=color:#000;font-weight:700>+</span> br<span style=color:#000;font-weight:700>.</span><span style=color:teal>readLine</span><span style=color:#000;font-weight:700>();</span>
+            <span style=color:#000;font-weight:700>try</span> <span style=color:#000;font-weight:700>{</span>
+                jdbcTemplate<span style=color:#000;font-weight:700>.</span><span style=color:teal>query</span><span style=color:#000;font-weight:700>(</span>sql<span style=color:#000;font-weight:700>,</span> <span style=color:#000;font-weight:700>(</span>ResultSet rowSet<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>-&gt;</span> <span style=color:#000;font-weight:700>{</span>
+                        ResultSetMetaData m<span style=color:#000;font-weight:700>;</span>
+                        m <span style=color:#000;font-weight:700>=</span> rowSet<span style=color:#000;font-weight:700>.</span><span style=color:teal>getMetaData</span><span style=color:#000;font-weight:700>();</span>
+                        <span style=color:#458;font-weight:700>int</span> columnCount <span style=color:#000;font-weight:700>=</span> m<span style=color:#000;font-weight:700>.</span><span style=color:teal>getColumnCount</span><span style=color:#000;font-weight:700>();</span>
+                        String fmt<span style=color:#000;font-weight:700>[]</span> <span style=color:#000;font-weight:700>=</span> <span style=color:#000;font-weight:700>new</span> String<span style=color:#000;font-weight:700>[</span>columnCount <span style=color:#000;font-weight:700>+</span> 1<span style=color:#000;font-weight:700>];</span>
+                        <span style=color:#458;font-weight:700>int</span> width <span style=color:#000;font-weight:700>=</span> 0<span style=color:#000;font-weight:700>;</span>
+
+                        <span style=color:#000;font-weight:700>for</span> <span style=color:#000;font-weight:700>(</span><span style=color:#458;font-weight:700>int</span> i <span style=color:#000;font-weight:700>=</span> 1<span style=color:#000;font-weight:700>;</span> i <span style=color:#000;font-weight:700>&lt;=</span> columnCount<span style=color:#000;font-weight:700>;</span> i<span style=color:#000;font-weight:700>++)</span> <span style=color:#000;font-weight:700>{</span>
+                            fmt<span style=color:#000;font-weight:700>[</span>i<span style=color:#000;font-weight:700>]</span> <span style=color:#000;font-weight:700>=</span> <span style=color:#d14>&#34;%-&#34;</span> <span style=color:#000;font-weight:700>+</span> m<span style=color:#000;font-weight:700>.</span><span style=color:teal>getColumnDisplaySize</span><span style=color:#000;font-weight:700>(</span>i<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>+</span> <span style=color:#d14>&#34;s&#34;</span><span style=color:#000;font-weight:700>;</span>
+                            System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>format</span><span style=color:#000;font-weight:700>(</span>fmt<span style=color:#000;font-weight:700>[</span>i<span style=color:#000;font-weight:700>],</span> m<span style=color:#000;font-weight:700>.</span><span style=color:teal>getColumnLabel</span><span style=color:#000;font-weight:700>(</span>i<span style=color:#000;font-weight:700>));</span>
+                            width <span style=color:#000;font-weight:700>+=</span> rowSet<span style=color:#000;font-weight:700>.</span><span style=color:teal>getMetaData</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getColumnDisplaySize</span><span style=color:#000;font-weight:700>(</span>i<span style=color:#000;font-weight:700>);</span>
+                        <span style=color:#000;font-weight:700>}</span>
+                        System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>print</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;\n&#34;</span><span style=color:#000;font-weight:700>);</span>
+
+                        <span style=color:#000;font-weight:700>for</span> <span style=color:#000;font-weight:700>(</span><span style=color:#458;font-weight:700>int</span> i <span style=color:#000;font-weight:700>=</span> 1<span style=color:#000;font-weight:700>;</span> i <span style=color:#000;font-weight:700>&lt;=</span> width<span style=color:#000;font-weight:700>;</span> i<span style=color:#000;font-weight:700>++)</span> <span style=color:#000;font-weight:700>{</span>
+                            System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>print</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;-&#34;</span><span style=color:#000;font-weight:700>);</span>
+                        <span style=color:#000;font-weight:700>}</span>
+                        System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>print</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;\n&#34;</span><span style=color:#000;font-weight:700>);</span>
+
+                        <span style=color:#000;font-weight:700>do</span><span style=color:#000;font-weight:700>{</span>
+                            <span style=color:#000;font-weight:700>for</span> <span style=color:#000;font-weight:700>(</span><span style=color:#458;font-weight:700>int</span> i <span style=color:#000;font-weight:700>=</span> 1<span style=color:#000;font-weight:700>;</span> i <span style=color:#000;font-weight:700>&lt;=</span> columnCount<span style=color:#000;font-weight:700>;</span> i<span style=color:#000;font-weight:700>++)</span> <span style=color:#000;font-weight:700>{</span>
+                                System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>format</span><span style=color:#000;font-weight:700>(</span>fmt<span style=color:#000;font-weight:700>[</span>i<span style=color:#000;font-weight:700>],</span> rowSet<span style=color:#000;font-weight:700>.</span><span style=color:teal>getString</span><span style=color:#000;font-weight:700>(</span>i<span style=color:#000;font-weight:700>));</span>
+                            <span style=color:#000;font-weight:700>}</span>
+                            System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>print</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;\n&#34;</span><span style=color:#000;font-weight:700>);</span>
+                            <span style=color:#000;font-weight:700>if</span> <span style=color:#000;font-weight:700>(</span>rowSet<span style=color:#000;font-weight:700>.</span><span style=color:teal>getRow</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>&gt;</span> 10<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+                                System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>println</span><span style=color:#000;font-weight:700>(</span><span style=color:#d14>&#34;...&#34;</span><span style=color:#000;font-weight:700>);</span>
+                                rowSet<span style=color:#000;font-weight:700>.</span><span style=color:teal>afterLast</span><span style=color:#000;font-weight:700>();</span>
+                            <span style=color:#000;font-weight:700>}</span>
+                        <span style=color:#000;font-weight:700>}</span><span style=color:#000;font-weight:700>while</span> <span style=color:#000;font-weight:700>(</span>rowSet<span style=color:#000;font-weight:700>.</span><span style=color:teal>next</span><span style=color:#000;font-weight:700>());</span>
+                    <span style=color:#000;font-weight:700>});</span>
+            <span style=color:#000;font-weight:700>}</span> <span style=color:#000;font-weight:700>catch</span> <span style=color:#000;font-weight:700>(</span>RuntimeException e<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+                <span style=color:#000;font-weight:700>if</span><span style=color:#000;font-weight:700>(</span>e<span style=color:#000;font-weight:700>.</span><span style=color:teal>getCause</span><span style=color:#000;font-weight:700>()</span> <span style=color:#000;font-weight:700>instanceof</span> SQLException<span style=color:#000;font-weight:700>)</span> <span style=color:#000;font-weight:700>{</span>
+                    System<span style=color:#000;font-weight:700>.</span><span style=color:teal>out</span><span style=color:#000;font-weight:700>.</span><span style=color:teal>println</span><span style=color:#000;font-weight:700>(</span>e<span style=color:#000;font-weight:700>.</span><span style=color:teal>getCause</span><span style=color:#000;font-weight:700>().</span><span style=color:teal>getMessage</span><span style=color:#000;font-weight:700>());</span>
+                <span style=color:#000;font-weight:700>}</span>
+            <span style=color:#000;font-weight:700>}</span>
+        <span style=color:#000;font-weight:700>}</span>
+    <span style=color:#000;font-weight:700>}</span>
+<span style=color:#000;font-weight:700>}</span></code></pre></td></tr></table></div></div><p>We are using <code>RowCallbackHandler</code> as we shall be processing the rows immediately. You can do away with all the SQL cuteness and run q statements directly by prefixing q statements with <code>q)</code>. All the exceptions from the jdbc class are thrown as runtime exceptions. An <code>SQLException</code> is generated if execution of the query fails. Apart from that <code>NullPointerException</code> is generated if a statement returns nothing upon execution such as assignment expressions <code>somevar:10</code>; and <code>ClassCastException</code> is thrown if you try to retrieve anything other than a table. Here I am handling only the <code>SQLException</code>s and masking all the others - which generally is not a good practice.</p><p>You need to first start the kdb server. You can run the client within eclipse or as a jar:</p><figure><img src=/img/P2_01.gif></img></figure><p>You can find the complete project <a href=https://github.com/subhc/blogcodes/tree/master/spring-kdb-demo>here</a>.</p></article></main></body><script async src="https://www.googletagmanager.com/gtag/js?id=G-QS51NR52XW"></script><script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-QS51NR52XW',{anonymize_ip:!1})}</script></html>

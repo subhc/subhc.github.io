@@ -1,0 +1,114 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Concatenating kdb Columns</title><meta name=description content="First post of my blog!"><meta name=copyright content="&copy; 2015 to present"><meta http-equiv=cleartype content="on"><meta name=generator content="Hugo 0.83.1"><link rel=stylesheet href=/css/styles.min.8436509b7571351b785a7ea3060e3c3da584a731acae7c0adf23fdb19f1361bb.css integrity=sha256-hDZQm3VxNRt4Wn6jBg48PaWEpzGsrnwK3yP9sZ8TYbs=><link rel=icon type=image/png href=/favicon.png></head><body class="flex flex-col min-h-screen"><header class="w-all px-4 pt-4"><style type=text/css>input#nav-toggle:checked~label#show-button{display:none}input#nav-toggle:checked~label#hide-button{display:flex}input#nav-toggle:checked~#nav-menu{display:block}</style><nav class="flex w-2/3 2xl:w-3/5 content-end items-center justify-between flex-wrap mt-6 mx-auto"><span class=flex></span><input id=nav-toggle type=checkbox class=hidden>
+<label id=show-button for=nav-toggle class="flex items-center block sm:hidden text-ridiculousblue hover:text-ridiculousorange"><svg class="fill-current h-4 w-4" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><title>Menu Open</title><path d="M0 3h20v2H0V3zm0 6h20v2H0V9zm0 6h20v2H0V0z"/></svg></label><label id=hide-button for=nav-toggle class="flex items-center hidden text-ridiculousblue hover:text-ridiculousorange"><svg class="fill-current h-4 w-4" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><title>Menu Close</title><polygon points="11 9 22 9 22 11 11 11 11 22 9 22 9 11 -2 11 -2 9 9 9 9 -2 11 -2" transform="rotate(45 10 10)"/></svg></label><ul id=nav-menu class="sm:flex w-full sm:w-auto hidden sm:block mt-2 sm:mt-0 sm:space-x-2 text-xxs
+2xl:text-xheader text-ridiculousblue font-baloo font-medium"><li><a href=/ class="mr-4 hover:text-ridiculousorange">Home</a></li><li><a href=/posts/ class="mr-4 hover:text-ridiculousorange">Posts</a></li><li><a href=/about/ class=hover:text-ridiculousorange>About</a></li></ul></nav></header><main class="flex-1 mx-4 md:mx-12 lg:mx-24"><style type=text/css>.prose pre code{color:#181818}</style><article class="px-6 mx-auto mb-16 prose prose-baloo prose-sm 2xl:prose prose-ridiculousblue justify-self-center sm:px-4 md:px-0 pt-8 md:pt-12"><h1>Concatenating kdb Columns</h1><p>Suppose in a query you need to concatenate two kdb columns into one; for example, to join date and time into one field - kdb has nifty features to do it easily.</p><ol><li><p>You can join(<code>,</code>) two or more column into one using <code>'</code>(each-both). The columns do not need to be of the same type. The type of the returned column is list.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)tab:([]firstname:`John`Jia`Jai`Jac;lastname:`James`Jain`Jadeja`Jones;age:1+4?30)
+q)tab
+firstname lastname age
+----------------------
+John      James    19
+Jia       Jain     24
+Jai       Jadeja   25
+Jac       Jones    19
+q)
+q)select name:(firstname,&#39;lastname) from tab
+name
+----------
+John James
+Jia  Jain
+Jai  Jadeja
+Jac  Jones</code></pre></td></tr></table></div></div></p></li><li><p>A mixed list is formed if the columns are of different type. If you cast the columns to string before each-both join, a concatenated string is formed. You can also insert a character using <code>,'</code>.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select col:((string firstname),&#39;(string lastname),&#39;&#34;/&#34;,&#39;(string age)) from tab
+col
+--------------
+&#34;JohnJames/19&#34;
+&#34;JiaJain/24&#34;
+&#34;JaiJadeja/25&#34;
+&#34;JacJones/19&#34;</code></pre></td></tr></table></div></div></p></li><li><p>If you need multi character delimiters, use <code>sv</code>. A nice advantage of this method is you don&rsquo;t have to individually convert each column to string.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select col:({&#34;--&#34; sv x} each string (firstname,&#39;lastname,&#39;age)) from tab
+col
+-----------------
+&#34;John--James--19&#34;
+&#34;Jia--Jain--24&#34;
+&#34;Jai--Jadeja--25&#34;
+&#34;Jac--Jones--19&#34;</code></pre></td></tr></table></div></div></p></li><li><p>To add a string as prefix and postfix to a column, you can use <code>/:</code>(each right) and <code>\:</code>(each left) respectively.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select (&#34;Dear &#34;,/:(string firstname)) from tab
+firstname
+-----------
+&#34;Dear John&#34;
+&#34;Dear Jia&#34;
+&#34;Dear Jai&#34;
+&#34;Dear Jac&#34;
+q)select ((string age),\:&#34; years&#34;) from tab
+x
+----------
+&#34;19 years&#34;
+&#34;24 years&#34;
+&#34;25 years&#34;
+&#34;19 years&#34;
+q)select col:((string firstname),&#39;(string lastname),&#39;&#34;/Age&#34;,/:(string age)) from tab
+col
+--------------
+&#34;JohnJames/Age19&#34;
+&#34;JiaJain/Age24&#34;
+&#34;JaiJadeja/Age25&#34;
+&#34;JacJones/Age19&#34;</code></pre></td></tr></table></div></div></p></li><li><p>Lets conclude by creating a JavaScript style array by joining all three columns.<div class=highlight><div style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#7f7f7f">7
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback>q)select (&#34;[&#39;&#34;,/:(({&#34;&#39;,&#39;&#34; sv x} each string (firstname,&#39;lastname,&#39;age)),\:&#34;&#39;]&#34;)) from tab
+x
+-----------------------
+&#34;[&#39;John&#39;,&#39;James&#39;,&#39;19&#39;]&#34;
+&#34;[&#39;Jia&#39;,&#39;Jain&#39;,&#39;24&#39;]&#34;
+&#34;[&#39;Jai&#39;,&#39;Jadeja&#39;,&#39;25&#39;]&#34;
+&#34;[&#39;Jac&#39;,&#39;Jones&#39;,&#39;19&#39;]&#34;</code></pre></td></tr></table></div></div></p></li></ol><div class=mt-20><div id=disqus_thread></div><script type=application/javascript>var disqus_config=function(){};(function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById('disqus_thread').innerHTML='Disqus comments not available by default when the website is previewed locally.';return}var b=document,a=b.createElement('script');a.async=!0,a.src='//kanche.disqus.com/embed.js',a.setAttribute('data-timestamp',+new Date),(b.head||b.body).appendChild(a)})()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a></div></article></main></body><script async src="https://www.googletagmanager.com/gtag/js?id=G-QS51NR52XW"></script><script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-QS51NR52XW',{anonymize_ip:!1})}</script></html>

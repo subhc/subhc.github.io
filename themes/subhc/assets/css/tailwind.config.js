@@ -7,8 +7,13 @@ module.exports = {
       'ridiculousgreen': '#202e78',
     },
     fontSize: {
-      'xxxs': '.6rem',
-      'xxs': '.85rem'
+      'xxxxs': '.6rem',
+      'xxxs': '.65rem',
+      'xxx2s': '.775rem',
+      'xxs': '.85rem',
+      'xx2s': '.9rem',
+      'xheader': '1rem',
+      'xheader2': '1.25rem'
     },
     fontFamily: {
       'myserif': ['"Source Serif Pro"', 'Georgia', '"Times New Roman"', 'Times', 'serif'],

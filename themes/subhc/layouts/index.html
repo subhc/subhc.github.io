@@ -1,79 +1,77 @@
 {{ define "main" }}
-<div class="container flex mx-auto w-5/6">
-    <div class="md:w-2/5 md:pl-14 md:pt-4  text-ridiculousblue">
-        <figure class="md:flex rounded-xl p-8 md:p-0 space-x-3">
-            <img class="w-20 h-20 md:rounded-none rounded-full  mx-auto" src="img/sc.jpg" alt="">
-            <div class="pt-2 md:leading-none lg:leading-normal  md:pt-3 md:pl-2 text-center md:flex-1 md:text-left">
-                <h1 class="text-sm font-neuton font-semibold">Subhabrata Choudhury</h1>
-                <div class="text-xxxs leading-tight font-montserrat text-gray-500">
-                    <p>PhD Candidate</p>
-                    <p>Visual Geometry Group</p>
-                    <p>University of Oxford</p>
-                    <p>United Kingdom</p>
+<div class="container  mx-auto w-5/6 2xl:w-2/3">
+    <div class="flex-col md:w-2/5 md:pl-14 text-ridiculousblue">
+        <div class="md:pt-6 2xl:pt-16">
+            <figure class="md:flex rounded-xl p-8 md:p-0 space-x-3">
+                <img class="w-20 2xl:w-24 h-20 2xl:h-24 md:rounded-none rounded-full  mx-auto" src="img/sc.jpg" alt="">
+                <div class="pt-2 md:leading-none lg:leading-normal  md:pt-1.5 md:pl-2 text-center md:flex-1 md:text-left ">
+                    <h1 class="text-xheader 2xl:text-xheader2 font-neuton font-bold">Subhabrata Choudhury</h1>
+                    <div class="text-xxxs 2xl:text-xxxs leading-tight font-montserrat text-gray-500">
+                        <p>PhD Candidate</p>
+                        <p>Visual Geometry Group</p>
+                        <p>University of Oxford</p>
+                        <p>United Kingdom</p>
+                    </div>
                 </div>
-            </div>
-        </figure>
+            </figure>
+        </div>
+        <div class="md:pt-10 2xl:pt-10"> </div>
+        <div class="pt-2 md:pt-4 2xl:pt-5">
+            <figure class="md:flex rounded-xl p-2 md:p-0 space-x-3 2xl:space-x-5">
+                <img class="w-14 2xl:w-16 h-14 2xl:h-16 md:rounded-none mx-auto" src="img/ox.svg" alt="">
+                <div class="pt-2 md:leading-none lg:leading-normal  md:pt-0 md:pl-2 text-center md:flex-1 md:text-left">
+                    <h1 class="text-xxxs  2xl:text-xxx2s font-montserrat">University of Oxford</h1>
+                    <div class="text-xxxxs  2xl:text-xxxs leading-snug font-montserrat font-light text-gray-500">
+                        <p>PhD Candidate, Engineering Science</p>
+                        <p>Advised by: Prof. Andrea Vedaldi</p>
+                        <p>United Kingdom, 2019-present</p>
+                    </div>
+                </div>
+            </figure>
+        </div>
+        <div class="pt-2 md:pt-4 2xl:pt-5">
+            <figure class="md:flex rounded-xl p-2 md:p-0 space-x-3 2xl:space-x-5">
+                <img class="w-14 2xl:w-16 h-14 2xl:h-16 md:rounded-none mx-auto" src="img/minerva.svg" alt="">
+                <div class="pt-2 md:leading-none lg:leading-normal  md:pt-0 md:pl-2 text-center md:flex-1 md:text-left">
+                    <h1 class="text-xxxs 2xl:text-xxx2s font-montserrat">Max-Planck Institute for Informatics</h1>
+                    <div class="text-xxxxs 2xl:text-xxxs leading-snug font-montserrat font-light text-gray-500">
+                        <p>MSc, Computer Science</p>
+                        <p>Advised by: Prof. Bernt Schiele</p>
+                        <p>Germany, 2018-2019</p>
+                    </div>
+                </div>
+            </figure>
+        </div>
+        <div class="pt-2 md:pt-4 2xl:pt-5">
+            <figure class="md:flex rounded-xl p-2 md:p-0 space-x-3 2xl:space-x-5 ">
+                <img class="w-14 2xl:w-16 h-14 2xl:h-16 md:rounded-none  mx-auto" src="img/uds.svg" alt="">
+                <div class="pt-2 md:leading-none lg:leading-normal  md:pt-0 md:pl-2 text-center md:flex-1 md:text-left">
+                    <h1 class="text-xxxs 2xl:text-xxx2s font-montserrat">Saarland University</h1>
+                    <div class="text-xxxxs 2xl:text-xxxs leading-snug font-montserrat font-light text-gray-500">
+                        <p>MSc, Computer Science</p>
+                        <p>Germany, 2017-2019</p>
+                    </div>
+                </div>
+            </figure>
+        </div>
+        <div class="pt-2 md:pt-4 2xl:pt-5">
+            <figure class="md:flex rounded-xl p-2 md:p-0 space-x-3 2xl:space-x-5">
+                <img class="w-14 2xl:w-16 h-14 2xl:h-16 md:rounded-none  mx-auto" src="img/kgp.svg" alt="">
+                <div class="pt-2 md:leading-none lg:leading-normal  md:pt-0 md:pl-2 text-center md:flex-1 md:text-left">
+                    <h1 class="text-xxxs 2xl:text-xxx2s font-montserrat">IIT Kharagpur</h1>
+                    <div class="text-xxxxs 2xl:text-xxxs leading-snug font-montserrat font-light text-gray-500">
+                        <p>B.Tech, Metallurgical and Materials Engineering</p>
+                        <p>Advised by: Prof. Rahul Mitra</p>
+                        <p>India, 2009-2013</p>
+                    </div>
+                </div>
+            </figure>
+        </div>
     </div>
     <div class="flex-1  md:w-3/5">
-        <div class="flex">
-            <div class="flex-none w-48 relative">
-                <img src="/sc.jpg" alt="" class="absolute inset-0 w-full h-full object-cover" />
-            </div>
-            <form class="flex-auto p-6">
-                <div class="flex flex-wrap">
-                    <h1 class="flex-auto text-xl font-semibold">
-                        Classic Utility Jacket
-                    </h1>
-                    <div class="text-xl font-semibold text-gray-500">
-                        $110.00
-                    </div>
-                    <div class="w-full flex-none text-sm font-medium text-gray-500 mt-2">
-                        In stock
-                    </div>
-                </div>
-                <div class="flex items-baseline mt-4 mb-6">
-                    <div class="space-x-2 flex">
-                        <label>
-                            <input class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-lg" name="size" type="radio" value="xs" checked>
-                            XS
-                        </label>
-                        <label>
-                            <input class="w-9 h-9 flex items-center justify-center" name="size" type="radio" value="s">
-                            S
-                        </label>
-                        <label>
-                            <input class="w-9 h-9 flex items-center justify-center" name="size" type="radio" value="m">
-                            M
-                        </label>
-                        <label>
-                            <input class="w-9 h-9 flex items-center justify-center" name="size" type="radio" value="l">
-                            L
-                        </label>
-                        <label>
-                            <input class="w-9 h-9 flex items-center justify-center" name="size" type="radio" value="xl">
-                            XL
-                        </label>
-                    </div>
-                    <div class="ml-auto text-sm text-gray-500 underline">Size Guide</div>
-                </div>
-                <div class="flex space-x-3 mb-4 text-sm font-medium">
-                    <div class="flex-auto flex space-x-3">
-                        <button class="w-1/2 flex items-center justify-center rounded-md bg-black text-white" type="submit">Buy now</button>
-                        <button class="w-1/2 flex items-center justify-center rounded-md border border-gray-300" type="button">Add to bag</button>
-                    </div>
-                    <button class="flex-none flex items-center justify-center w-9 h-9 rounded-md text-gray-400 border border-gray-300" type="button" aria-label="like">
-                        <svg width="20" height="20" fill="currentColor">
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                        </svg>
-                    </button>
-                </div>
-                <p class="text-sm text-gray-500">
-                    Free shipping on all continental US orders.
-                </p>
-            </form>
-        </div>
-
-
     </div>
 </div>
 {{ end }}
+
+
+

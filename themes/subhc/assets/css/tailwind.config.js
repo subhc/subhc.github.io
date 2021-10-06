@@ -2,35 +2,50 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'ridiculousblue': '#29558c',
+        'ridiculousblue': '#153e67', //1b4471
+        'ridiculouslblue': '#0d5398',
         'ridiculousorange': '#e55d47',
         'ridiculousgray': '#b1b1b1',
         'ridiculousyellow': '#fefef1',
       },
       fontSize: {
-        'xxxxs': '.6rem',
-        'xxxs': '.65rem',
-        'xxx1s': '.7rem',
-        'xxx2s': '.775rem',
-        'xxs': '.85rem',
-        'xx2s': '.9rem',
-        'xheader': '1rem',
-        'xheader2': '1.25rem'
+        'x6': '.6rem',
+        'x7': '.7rem',
+        'x8': '.8rem',
+        'x9': '.9rem',
+        'x925': '.925rem',
+        'x95': '.95rem',
+        'x975': '.975rem',
+        'x1050': '1.05rem',
+        'x1100': '1.1rem',
+        'x1200': '1.2rem',
       },
 
+      minWidth: {
+        '96': '24rem',
+      },
+      width: {
+        '120': '30rem',
+      },
       zIndex: {
         '-10': '-10',
       },
       fontFamily: {
         'baloo': ['"Baloo Da 2"','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
         'neuton': ['Neuton','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
-        'montserrat': ['Montserrat','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
+        'montserrat': ['"Nunito"','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
+        'google': ['"Google Sans"','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
+        'robotoslab': ['"Roboto Slab"','"Helvetica Neue"','Helvetica','Arial','sans-serif']
       },
     },
   },
-  variants: {},
+  variants: {
+    textColor: ['responsive', 'dark', 'group-hover', 'focus-within', 'hover', 'focus', 'active'],
+  },
   plugins: [
+    require('@tailwindcss/aspect-ratio'),
     require('@tailwindcss/typography'),
     require('@tailwindcss/forms')
   ]
 }
+// http://www.robinfwilliams.com/resume

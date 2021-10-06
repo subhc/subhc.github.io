@@ -14,10 +14,10 @@
         }
     </style>
 
-    <nav class="flex w-2/3 2xl:w-3/5  content-end items-center justify-between flex-wrap mt-6 mx-auto">
+    <nav class="flex w-10/12  content-end items-center justify-between flex-wrap mt-6 mx-auto">
         <span class="flex"></span>
         <input id="nav-toggle" type=checkbox class="hidden">
-        <label id="show-button" for="nav-toggle" class="flex items-center block sm:hidden text-ridiculousblue hover:text-ridiculousorange">
+        <label id="show-button" for="nav-toggle" class="flex items-center block md:hidden text-ridiculousblue hover:text-ridiculousorange">
             <svg class="fill-current h-4 w-4" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <title>Menu Open</title>
                 <path d="M0 3h20v2H0V3z m0 6h20v2H0V9z m0 6h20v2H0V0z" />
@@ -30,16 +30,9 @@
                          transform="rotate(45 10 10)" />
             </svg>
         </label>
-        <ul id="nav-menu" class="sm:flex w-full sm:w-auto hidden sm:block mt-2 sm:mt-0 sm:space-x-2 text-xxs
-                                 2xl:text-xheader text-ridiculousblue font-baloo font-medium">
-            {{ with .Site.GetPage "/" }}
-            <li><a href="{{ .Permalink }}" class="mr-4 hover:text-ridiculousorange">Home</a></li>
-            {{ end }}
-            {{ range .Site.Sections }}
-            <li><a href="{{ .Permalink }}" class="mr-4 hover:text-ridiculousorange">{{ .Title }}</a></li>
-            {{ end }}
-            {{ with .Site.GetPage "/about" }}
-            <li><a href="{{ .Permalink }}" class="hover:text-ridiculousorange">{{ .Title }}</a></li>
+        <ul id="nav-menu" class="text-x95 md:flex w-9/12 md:w-auto hidden md:block mt-2 md:mt-0 md:space-x-2 text-ridiculousblue font-baloo font-medium">
+            {{ range .Site.Menus.main }}
+            <li><a class="mr-4 hover:text-ridiculousorange" href="{{ .URL }}" title="{{ .Title }}">{{ .Name }}</a></li>
             {{ end }}
         </ul>
     </nav>

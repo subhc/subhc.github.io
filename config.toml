@@ -16,6 +16,11 @@ disqusShortname = "kanche"
     identifier = "POSTS"
     weight = 2
     url = "/posts/"
+[[menu.main]]
+    name = "ABOUT"
+    identifier = "ABOUT"
+    weight = 3
+    url = "/about/"
 [markup]
     [markup.goldmark]
         [markup.goldmark.renderer]

@@ -2,7 +2,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'ridiculousblue': '#153e67', //1b4471
+        'ridiculousblue': '#153e67',
         'ridiculouslblue': '#0d5398',
         'ridiculousorange': '#e55d47',
         'ridiculousgray': '#b1b1b1',
@@ -35,7 +35,7 @@ module.exports = {
         'neuton': ['Neuton','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
         'montserrat': ['"Nunito"','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
         'google': ['"Google Sans"','"Helvetica Neue"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
-        'robotoslab': ['"Roboto Slab"','"Helvetica Neue"','Helvetica','Arial','sans-serif']
+        'robotoslab': ['"Roboto Slab"','"Helvetica Neue"','Helvetica','Arial','sans-serif'],
       },
     },
   },

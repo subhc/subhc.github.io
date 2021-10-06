@@ -4,6 +4,7 @@ nopaging = true
 nodate = true
 nocomment = true
 noheader = true
+noindex = true
 type = "projects"
 layout = "template"
 conference = "NeurIPS 2021"

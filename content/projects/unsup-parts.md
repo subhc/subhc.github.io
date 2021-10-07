@@ -16,7 +16,7 @@ affiliations = [ [" ", "VGG, University of Oxford","http://www.robots.ox.ac.uk/~
 links = [ ["paper","#paper"], ["video","#video"], ["code","#code"], ["supplementary","#suppmat"] ]
 teaser = "/img/p/neurips21a-teaser5.jpg"
 results = "/img/p/neurips_220_results.jpg"
-description = "We propose an unsupervised method to decompose a images of objects into semantically meaningful parts by building a self-supervised task that encourages the model to learning a semantic decomposition. <b><i>Top:</i></b> In our case, we combine three simple learning principles as “part proxy”: internally-consistent and distinctive appearance, and consistency to transformation (equivariance). <b><i>Bottom:</i></b> Our method works on various fine-grained but visually distinct categories e.g. birds (CUB-2011), human (DeepFashion), sheep (Pascal-Parts) etc."
+description = "We propose an unsupervised method to decompose images of objects into semantically meaningful parts by building a self-supervised task that encourages the model to learning a semantic decomposition. <b><i>Top:</i></b> In our case, we combine three simple learning principles as “part proxy”: internally-consistent and distinctive appearance, and consistency to transformation (equivariance). <b><i>Bottom:</i></b> Our method works on various fine-grained but visually distinct categories e.g. birds (CUB-2011), human (DeepFashion), sheep (Pascal-Parts) etc."
 video = "https://www.youtube-nocookie.com/embed/QH2-TGUlwu4"
 pdf_link = ""
 pdf_thumb= "/img/file-alt-regular.svg"
@@ -27,7 +27,7 @@ bibtex = ["@inproceedings{choudhury2021unsupervised,",
 "author = {Choudhury, Subhabrata and Laina, Iro and Rupprecht, Christian and Vedaldi, Andrea},",
 "booktitle = {Advances in Neural Information Processing Systems}",
 "title = {Unsupervised Part Discovery with Contrastive Reconstruction}",
-"volume = {34},",
+"volume = {35},",
 "year = {2021}",
 "}"]
 +++

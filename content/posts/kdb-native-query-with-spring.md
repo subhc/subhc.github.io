@@ -5,7 +5,7 @@ tags = ["kdb", "java", "spring", "nativeJDBC"]
 description = "How to query using kdb native queries while using Spring JDBC framework"
 +++
 
-In my last post on [accessing a kdb+ server from spring]({{< relref "posts/kdb-and-spring.md" >}}), we configured Spring to listen to a kdb+ gateway via jdbc. One drawback of using jdbc is queries will now have to be written as single-line sql strings to match the type of JdbcTemplate query arguments. This strips away some of the advantages `c.java` style querying has. In this post we'll go over a way to use the native kdb executor method in spring jdbc so that we can query `c.java` style and at the same time retain some of the advantages of jdbc, such as, simple connection configuration, effortless connection management etc.
+In my last post on [accessing a kdb+ server from spring]({{< relref "posts/kdb-and-spring.md" >}}), we configured Spring to listen to a kdb+ gateway via jdbc. One drawback of using jdbc is queries will now have to be written as single-line sql strings to match the type of JdbcTemplate query arguments. This strips away some advantages `c.java` style querying has. In this post we'll go over a way to use the native kdb executor method in spring jdbc so that we can use `c.java` style queries and at the same time retain some advantages of jdbc, such as, simple connection configuration, effortless connection management etc.
 
 Let's take an example. In a trading system, quotes data is periodically updated with new of snapshots received from exchanges. Let’s make a barebones kdb quote store server. We will define a simple bid-ask quote table and a `upd` function to insert list of records into it. The update time will also be recorded along with the new values.
 

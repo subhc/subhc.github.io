@@ -7,6 +7,7 @@ module.exports = {
         'ridiculousorange': '#e55d47',
         'ridiculousgray': '#b1b1b1',
         'ridiculousyellow': '#fefef1',
+        'ridiculouspurple': '#5500ff',
       },
       fontSize: {
         'x6': '.6rem',

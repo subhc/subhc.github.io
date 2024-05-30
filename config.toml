@@ -2,7 +2,6 @@ baseurl = "/"
 languageCode = "en-us"
 title = "Subhabrata Choudhury"
 author = "Subhabrata Choudhury"
-googleAnalytics = "UA-66564594-1"
 disqusShortname = "kanche"
 [permalinks]
     posts = "/p/:year/:month/:title"
